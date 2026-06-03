@@ -1,3 +1,5 @@
 id,nome,categoria,preco,quantidade,validade
-2,feijão,percível,8.5,90,12/04/2028
+2,feijão,percível,8.5,3,12/04/2028
 3,arroz,perecível,12.5,100,22/12/2027
+4,leite,perecível,4.5,100,14/05/2026
+5,pão,perecível,0.99,50,04/06/2026
