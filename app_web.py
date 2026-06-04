@@ -1,18 +1,36 @@
 import streamlit as st
 import database as db
+import cv2
+import numpy as np
+from pyzbar.pyzbar import decode
 
 st.set_page_config(page_title="IA Luna - ERP", layout="wide")
+
+# Garante que o banco exista
 db.garantir_estrutura()
 
 st.title("🤖 IA Luna - Gestão Robusta")
 
-tab1, tab2, tab3, tab4 = st.tabs(["📦 Estoque e Busca", "➕ Gestão", "🛒 Vendas", "📜 Logs"])
+def ler_codigo(img_bytes):
+    try:
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is None:
+            return None
+        codigos = decode(img)
+        for obj in codigos:
+            return obj.data.decode('utf-8')
+    except Exception as e:
+        st.error(f"Erro na leitura: {e}")
+    return None
+
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["📦 Estoque", "➕ Gestão", "🛒 Vendas", "📜 Logs", "📷 Leitor"])
 
 with tab1:
     st.header("🔎 Estoque Atual")
     busca = st.text_input("Buscar produto por nome:")
     df = db.buscar_tudo()
-    if busca:
+    if not df.empty and busca:
         df = df[df['nome'].str.contains(busca, case=False, na=False)]
     st.dataframe(df, use_container_width=True)
 
@@ -30,33 +48,15 @@ with tab2:
             if st.form_submit_button("Salvar"):
                 db.adicionar_produto(nome, cat, preco, qtd, val, ref)
                 st.rerun()
-    with col2:
-        st.subheader("Remover Produto")
-        id_del = st.selectbox("ID para remover:", db.buscar_tudo()['id'].tolist())
-        if st.button("Confirmar Remoção"):
-            db.remover_produto(id_del)
-            st.rerun()
 
-with tab3:
-    st.header("🛒 Registrar Venda (Baixa)")
-    df = db.buscar_tudo()
-    prod_id = st.selectbox("Selecione o produto:", df['id'].tolist(), format_func=lambda x: df[df['id']==x]['nome'].values[0])
-    qtd_venda = st.number_input("Quantidade vendida:", 1, step=1)
-    if st.button("Confirmar Venda"):
-        if db.registrar_venda(prod_id, qtd_venda):
-            st.success("Venda registrada com sucesso!")
-            st.rerun()
+with tab5:
+    st.header("📷 Leitor de Código")
+    img_file = st.camera_input("Capturar")
+    if img_file is not None:
+        codigo_lido = ler_codigo(img_file.getvalue())
+        if codigo_lido:
+            st.success(f"✅ Código: {codigo_lido}")
         else:
-            st.error("Estoque insuficiente!")
+            st.warning("❌ Código não detectado.")
 
-with tab4:
-    st.header("📜 Histórico de Logs")
-    st.dataframe(db.buscar_logs(), use_container_width=True)
-    
-    st.header("📊 Relatório Financeiro")
-    df = db.buscar_tudo()
-    if not df.empty:
-        total = (df['preco'] * df['quantidade']).sum()
-        st.metric("💰 Valor Total em Estoque", f"R$ {total:,.2f}")
-        csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Exportar Relatório (CSV)", csv, "estoque.csv", "text/csv")
+# (Mantenha o restante das suas abas tab3 e tab4 exatamente como você já tinha)
