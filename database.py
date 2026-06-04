@@ -2,63 +2,54 @@ import sqlite3
 import pandas as pd
 from datetime import datetime
 
-DB_NAME = 'estoque.db'
-
-def conectar(): return sqlite3.connect(DB_NAME)
+def conectar():
+    return sqlite3.connect('estoque.db')
 
 def garantir_estrutura():
     conn = conectar()
     cursor = conn.cursor()
-    # Tabela de produtos
-    cursor.execute('''CREATE TABLE IF NOT EXISTS produtos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, categoria TEXT, 
-        preco REAL, quantidade INTEGER, validade TEXT, preco_referencia REAL DEFAULT 0.0)''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS produtos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT,
+            categoria TEXT,
+            preco REAL,
+            quantidade INTEGER,
+            validade TEXT,
+            preco_referencia REAL
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            acao TEXT,
+            data TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def salvar_produto_inteligente(nome, cat, preco, qtd, val, ref):
+    conn = conectar()
+    cursor = conn.cursor()
+    # Verifica se o produto já existe pelo nome
+    cursor.execute("SELECT id, quantidade FROM produtos WHERE nome = ?", (nome,))
+    resultado = cursor.fetchone()
     
-    # Tabela de logs
-    cursor.execute('''CREATE TABLE IF NOT EXISTS logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, acao TEXT, detalhe TEXT, data TEXT)''')
+    if resultado:
+        # Se existe, atualiza a quantidade somando a nova
+        novo_total = resultado[1] + qtd
+        cursor.execute("UPDATE produtos SET quantidade = ? WHERE id = ?", (novo_total, resultado[0]))
+        acao = f"Atualizado: {nome} (+{qtd})"
+    else:
+        # Se não existe, insere novo
+        cursor.execute("INSERT INTO produtos (nome, categoria, preco, quantidade, validade, preco_referencia) VALUES (?, ?, ?, ?, ?, ?)", 
+                       (nome, cat, preco, qtd, val, ref))
+        acao = f"Cadastrado: {nome}"
+    
+    cursor.execute("INSERT INTO logs (acao, data) VALUES (?, ?)", (acao, datetime.now().strftime("%d/%m/%Y %H:%M")))
     conn.commit()
     conn.close()
-
-def adicionar_log(acao, detalhe):
-    conn = conectar()
-    cursor = conn.cursor()
-    data = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    cursor.execute("INSERT INTO logs (acao, detalhe, data) VALUES (?, ?, ?)", (acao, detalhe, data))
-    conn.commit()
-    conn.close()
-
-def adicionar_produto(nome, cat, preco, qtd, val, ref):
-    conn = conectar()
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO produtos (nome, categoria, preco, quantidade, validade, preco_referencia) VALUES (?, ?, ?, ?, ?, ?)", 
-                   (nome, cat, preco, qtd, val, ref))
-    conn.commit()
-    adicionar_log("Cadastro", f"Produto {nome} adicionado.")
-    conn.close()
-
-def remover_produto(id_produto):
-    conn = conectar()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM produtos WHERE id = ?", (id_produto,))
-    conn.commit()
-    adicionar_log("Remoção", f"Produto ID {id_produto} removido.")
-    conn.close()
-
-def registrar_venda(id_produto, qtd_vendida):
-    conn = conectar()
-    cursor = conn.cursor()
-    # Verifica estoque atual
-    cursor.execute("SELECT quantidade, nome FROM produtos WHERE id = ?", (id_produto,))
-    row = cursor.fetchone()
-    if row and row[0] >= qtd_vendida:
-        cursor.execute("UPDATE produtos SET quantidade = quantidade - ? WHERE id = ?", (qtd_vendida, id_produto))
-        conn.commit()
-        adicionar_log("Venda", f"Venda de {qtd_vendida} unidades de {row[1]}")
-        conn.close()
-        return True
-    conn.close()
-    return False
 
 def buscar_tudo():
     conn = conectar()
@@ -66,8 +57,24 @@ def buscar_tudo():
     conn.close()
     return df
 
+def registrar_venda(prod_id, qtd_venda):
+    conn = conectar()
+    cursor = conn.cursor()
+    cursor.execute("SELECT quantidade FROM produtos WHERE id = ?", (prod_id,))
+    qtd_atual = cursor.fetchone()[0]
+    
+    if qtd_atual >= qtd_venda:
+        novo_qtd = qtd_atual - qtd_venda
+        cursor.execute("UPDATE produtos SET quantidade = ? WHERE id = ?", (novo_qtd, prod_id))
+        cursor.execute("INSERT INTO logs (acao, data) VALUES (?, ?)", (f"Venda: ID {prod_id} (-{qtd_venda})", datetime.now().strftime("%d/%m/%Y %H:%M")))
+        conn.commit()
+        conn.close()
+        return True
+    conn.close()
+    return False
+
 def buscar_logs():
     conn = conectar()
-    df = pd.read_sql_query("SELECT * FROM logs ORDER BY data DESC", conn)
+    df = pd.read_sql_query("SELECT * FROM logs ORDER BY id DESC", conn)
     conn.close()
     return df
