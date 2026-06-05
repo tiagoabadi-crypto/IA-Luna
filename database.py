@@ -61,10 +61,10 @@ def registrar_venda(prod_id, qtd_venda):
     conn = conectar()
     cursor = conn.cursor()
     cursor.execute("SELECT quantidade FROM produtos WHERE id = ?", (prod_id,))
-    qtd_atual = cursor.fetchone()[0]
+    resultado = cursor.fetchone()
     
-    if qtd_atual >= qtd_venda:
-        novo_qtd = qtd_atual - qtd_venda
+    if resultado and resultado[0] >= qtd_venda:
+        novo_qtd = resultado[0] - qtd_venda
         cursor.execute("UPDATE produtos SET quantidade = ? WHERE id = ?", (novo_qtd, prod_id))
         cursor.execute("INSERT INTO logs (acao, data) VALUES (?, ?)", (f"Venda: ID {prod_id} (-{qtd_venda})", datetime.now().strftime("%d/%m/%Y %H:%M")))
         conn.commit()

@@ -39,7 +39,7 @@ def buscar_produto_api(codigo):
 
 st.title("🤖 IA Luna - Gestão Robusta")
 
-# --- NAVEGAÇÃO ---
+# --- NAVEGAÇÃO SEGURA ---
 opcoes = ["📦 Estoque", "➕ Gestão", "🛒 Vendas", "📜 Logs", "📷 Leitor"]
 if st.session_state.pagina not in opcoes:
     st.session_state.pagina = opcoes[0]
@@ -52,6 +52,17 @@ st.session_state.pagina = st.radio(
 if st.session_state.pagina == "📦 Estoque":
     st.header("🔎 Estoque Atual")
     df = db.buscar_tudo()
+    
+    # --- Lógica de Alerta de Estoque Crítico ---
+    limite_baixo = 5 
+    if not df.empty:
+        baixo_estoque = df[df['quantidade'] <= limite_baixo]
+        if not baixo_estoque.empty:
+            st.error(f"⚠️ Atenção: {len(baixo_estoque)} produtos com estoque crítico (<= {limite_baixo})!")
+            st.dataframe(baixo_estoque, use_container_width=True)
+            st.divider()
+
+    st.subheader("Lista Geral")
     st.dataframe(df, use_container_width=True)
 
 elif st.session_state.pagina == "➕ Gestão":
@@ -90,6 +101,8 @@ elif st.session_state.pagina == "🛒 Vendas":
                 st.rerun()
             else:
                 st.error("Estoque insuficiente!")
+    else:
+        st.write("Estoque vazio.")
 
 elif st.session_state.pagina == "📜 Logs":
     st.header("📜 Histórico")
