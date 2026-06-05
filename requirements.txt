@@ -3,3 +3,6 @@ opencv-python-headless
 pyzbar
 numpy
 requests
+plotly
+pandas
+sqlite3

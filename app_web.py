@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 from pyzbar.pyzbar import decode
 import requests
+import plotly.express as px  # Nova biblioteca
 
 st.set_page_config(page_title="IA Luna - ERP", layout="wide")
 db.garantir_estrutura()
@@ -39,7 +40,7 @@ def buscar_produto_api(codigo):
 
 st.title("🤖 IA Luna - Gestão Robusta")
 
-# --- NAVEGAÇÃO SEGURA ---
+# --- NAVEGAÇÃO ---
 opcoes = ["📦 Estoque", "➕ Gestão", "🛒 Vendas", "📜 Logs", "📷 Leitor"]
 if st.session_state.pagina not in opcoes:
     st.session_state.pagina = opcoes[0]
@@ -50,22 +51,39 @@ st.session_state.pagina = st.radio(
 
 # --- TELAS ---
 if st.session_state.pagina == "📦 Estoque":
-    st.header("🔎 Estoque Atual")
+    st.header("🔎 Dashboard e Estoque")
     df = db.buscar_tudo()
     
-    # --- Lógica de Alerta de Estoque Crítico ---
-    limite_baixo = 5 
     if not df.empty:
+        # --- NOVO: Dashboard de Inteligência ---
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Gráfico de Quantidade por Produto
+            fig = px.bar(df, x='nome', y='quantidade', title="Volume de Estoque por Produto", color='quantidade')
+            st.plotly_chart(fig, use_container_width=True)
+            
+        with col2:
+            # Cálculo de valor aproximado (Preço * Quantidade)
+            df['valor_total'] = df['preco'] * df['quantidade']
+            fig_valor = px.pie(df, values='valor_total', names='nome', title="Distribuição de Valor em Estoque")
+            st.plotly_chart(fig_valor, use_container_width=True)
+        
+        # --- Alerta de Estoque Crítico ---
+        limite_baixo = 5 
         baixo_estoque = df[df['quantidade'] <= limite_baixo]
         if not baixo_estoque.empty:
-            st.error(f"⚠️ Atenção: {len(baixo_estoque)} produtos com estoque crítico (<= {limite_baixo})!")
+            st.error(f"⚠️ Atenção: {len(baixo_estoque)} produtos com estoque crítico!")
             st.dataframe(baixo_estoque, use_container_width=True)
             st.divider()
 
-    st.subheader("Lista Geral")
-    st.dataframe(df, use_container_width=True)
+        st.subheader("Lista Geral")
+        st.dataframe(df, use_container_width=True)
+    else:
+        st.write("Estoque vazio.")
 
 elif st.session_state.pagina == "➕ Gestão":
+    # ... (Seu código de gestão permanece o mesmo)
     st.subheader("Cadastrar Produto")
     nome_inicial = ""
     if st.session_state.codigo_lido:
@@ -86,10 +104,11 @@ elif st.session_state.pagina == "➕ Gestão":
         if st.form_submit_button("Salvar"):
             db.salvar_produto_inteligente(nome, cat, preco, qtd, val, ref)
             st.session_state.codigo_lido = ""
-            st.success("Produto salvo com sucesso!")
+            st.success("Produto salvo!")
             st.rerun()
 
 elif st.session_state.pagina == "🛒 Vendas":
+    # ... (Seu código de Vendas permanece o mesmo)
     st.header("🛒 Registrar Venda")
     df = db.buscar_tudo()
     if not df.empty:
@@ -101,8 +120,6 @@ elif st.session_state.pagina == "🛒 Vendas":
                 st.rerun()
             else:
                 st.error("Estoque insuficiente!")
-    else:
-        st.write("Estoque vazio.")
 
 elif st.session_state.pagina == "📜 Logs":
     st.header("📜 Histórico")
@@ -118,5 +135,3 @@ elif st.session_state.pagina == "📷 Leitor":
             st.success(f"✅ Código {codigo} identificado!")
             st.session_state.pagina = "➕ Gestão"
             st.rerun()
-        else:
-            st.warning("❌ Não detectado.")
