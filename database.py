@@ -8,6 +8,7 @@ def conectar():
 def garantir_estrutura():
     conn = conectar()
     cursor = conn.cursor()
+    # Tabela de Produtos
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS produtos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -19,6 +20,7 @@ def garantir_estrutura():
             preco_referencia REAL
         )
     ''')
+    # Tabela de Logs
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

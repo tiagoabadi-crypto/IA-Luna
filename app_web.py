@@ -23,19 +23,15 @@ def ler_codigo(img_bytes):
         codigos = decode(img)
         for obj in codigos:
             return obj.data.decode('utf-8')
-    except:
-        return None
-    return None
+    except: return None
 
 def buscar_produto_api(codigo):
     url = f"https://world.openfoodfacts.org/api/v0/product/{codigo}.json"
     try:
         response = requests.get(url, timeout=3)
         data = response.json()
-        if data.get("status") == 1:
-            return data["product"].get("product_name", "")
-    except:
-        pass
+        if data.get("status") == 1: return data["product"].get("product_name", "")
+    except: pass
     return ""
 
 st.title("🤖 IA Luna - Gestão Robusta")
@@ -51,45 +47,43 @@ st.session_state.pagina = st.radio(
 
 # --- TELAS ---
 if st.session_state.pagina == "📦 Estoque":
-    st.header("🔎 Estoque Atual")
+    st.header("🔎 Dashboard e Estoque")
     df = db.buscar_tudo()
-    
     if not df.empty:
+        col1, col2 = st.columns(2)
+        with col1:
+            fig = px.bar(df, x='nome', y='quantidade', title="Volume de Estoque", color='quantidade')
+            st.plotly_chart(fig, use_container_width=True)
+        with col2:
+            df['valor_total'] = df['preco'] * df['quantidade']
+            fig_valor = px.pie(df, values='valor_total', names='nome', title="Distribuição de Valor ($)")
+            st.plotly_chart(fig_valor, use_container_width=True)
+        
         limite_baixo = 5 
         baixo_estoque = df[df['quantidade'] <= limite_baixo]
         if not baixo_estoque.empty:
-            st.error(f"⚠️ Atenção: {len(baixo_estoque)} produtos com estoque crítico!")
+            st.error(f"⚠️ Atenção: {len(baixo_estoque)} produtos com estoque crítico (<= {limite_baixo})!")
             st.dataframe(baixo_estoque, use_container_width=True)
-        
+            st.divider()
         st.subheader("Lista Geral")
         st.dataframe(df, use_container_width=True)
 
 elif st.session_state.pagina == "💰 Financeiro":
     st.header("💰 Visão Financeira")
     df = db.buscar_tudo()
-    
     if not df.empty:
-        # Cálculos de Lucro
         df['lucro_unitario'] = df['preco'] - df['preco_referencia']
         df['lucro_total_estoque'] = df['lucro_unitario'] * df['quantidade']
-        
         col1, col2, col3 = st.columns(3)
-        col1.metric("Valor Total Venda", f"R$ {df['preco'].mul(df['quantidade']).sum():.2f}")
-        col2.metric("Valor Total Custo", f"R$ {df['preco_referencia'].mul(df['quantidade']).sum():.2f}")
+        col1.metric("Venda Total", f"R$ {df['preco'].mul(df['quantidade']).sum():.2f}")
+        col2.metric("Custo Total", f"R$ {df['preco_referencia'].mul(df['quantidade']).sum():.2f}")
         col3.metric("Lucro Potencial", f"R$ {df['lucro_total_estoque'].sum():.2f}")
-        
         st.divider()
-        st.subheader("Detalhamento por Produto")
         st.dataframe(df[['nome', 'preco', 'preco_referencia', 'lucro_total_estoque']], use_container_width=True)
-    else:
-        st.info("Estoque vazio.")
 
 elif st.session_state.pagina == "➕ Gestão":
     st.subheader("Cadastrar Produto")
-    nome_inicial = ""
-    if st.session_state.codigo_lido:
-        nome_inicial = buscar_produto_api(st.session_state.codigo_lido)
-    
+    nome_inicial = buscar_produto_api(st.session_state.codigo_lido) if st.session_state.codigo_lido else ""
     with st.form("cadastro"):
         nome = st.text_input("Nome", value=nome_inicial)
         cat = st.text_input("Categoria")
@@ -97,9 +91,9 @@ elif st.session_state.pagina == "➕ Gestão":
         ref = st.number_input("Preço Custo", 0.0)
         qtd = st.number_input("Qtd", 0, step=1)
         val = st.text_input("Validade")
-        
         if st.form_submit_button("Salvar"):
             db.salvar_produto_inteligente(nome, cat, preco, qtd, val, ref)
+            st.session_state.codigo_lido = ""
             st.success("Produto salvo!")
             st.rerun()
 
@@ -115,7 +109,7 @@ elif st.session_state.pagina == "🛒 Vendas":
                 st.rerun()
 
 elif st.session_state.pagina == "📜 Logs":
-    st.header("📜 Histórico")
+    st.header("📜 Histórico de Ações")
     st.dataframe(db.buscar_logs(), use_container_width=True)
 
 elif st.session_state.pagina == "📷 Leitor":
