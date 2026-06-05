@@ -8,7 +8,6 @@ def conectar():
 def garantir_estrutura():
     conn = conectar()
     cursor = conn.cursor()
-    # Tabela de Produtos
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS produtos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -20,7 +19,6 @@ def garantir_estrutura():
             preco_referencia REAL
         )
     ''')
-    # Tabela de Logs
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,17 +32,14 @@ def garantir_estrutura():
 def salvar_produto_inteligente(nome, cat, preco, qtd, val, ref):
     conn = conectar()
     cursor = conn.cursor()
-    # Verifica se o produto já existe pelo nome
     cursor.execute("SELECT id, quantidade FROM produtos WHERE nome = ?", (nome,))
     resultado = cursor.fetchone()
     
     if resultado:
-        # Se existe, atualiza a quantidade (soma)
         novo_total = resultado[1] + qtd
         cursor.execute("UPDATE produtos SET quantidade = ? WHERE id = ?", (novo_total, resultado[0]))
         acao = f"Atualizado: {nome} (+{qtd})"
     else:
-        # Se não existe, insere novo
         cursor.execute("INSERT INTO produtos (nome, categoria, preco, quantidade, validade, preco_referencia) VALUES (?, ?, ?, ?, ?, ?)", 
                        (nome, cat, preco, qtd, val, ref))
         acao = f"Cadastrado: {nome}"
