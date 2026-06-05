@@ -1,8 +1,7 @@
 streamlit
 opencv-python-headless
 pyzbar
-numpy
+pandas
 requests
 plotly
-pandas
-sqlite3
+numpy
