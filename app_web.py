@@ -5,10 +5,30 @@ import numpy as np
 from pyzbar.pyzbar import decode
 import requests
 import plotly.express as px
-import os # Biblioteca necessária para lidar com o arquivo .db
+import os
 
 st.set_page_config(page_title="IA Luna - ERP", layout="wide")
 db.garantir_estrutura()
+
+# --- AUTENTICAÇÃO (SISTEMA DE LOGIN) ---
+if 'autenticado' not in st.session_state:
+    st.session_state.autenticado = False
+
+def tela_login():
+    st.title("🔐 IA Luna - Acesso Restrito")
+    senha = st.text_input("Digite a senha de acesso:", type="password")
+    if st.button("Entrar"):
+        if senha == "1234": # VOCÊ PODE MUDAR A SENHA AQUI
+            st.session_state.autenticado = True
+            st.rerun()
+        else:
+            st.error("Senha incorreta!")
+
+if not st.session_state.autenticado:
+    tela_login()
+    st.stop() # Bloqueia o restante do código se não estiver logado
+
+# --- SE ESTIVER AUTENTICADO, SEGUE O APP ---
 
 # --- ESTADO INICIAL ---
 if 'pagina' not in st.session_state:
@@ -52,31 +72,15 @@ if st.session_state.pagina == "📦 Estoque":
     df = db.buscar_tudo()
     
     if not df.empty:
-        # --- Botões de Exportação/Backup ---
+        # Botões de Exportação/Backup
         col_btn1, col_btn2 = st.columns(2)
-        
-        # 1. Export CSV
         csv = df.to_csv(index=False).encode('utf-8')
-        col_btn1.download_button(
-            label="📥 Baixar Planilha (CSV)",
-            data=csv,
-            file_name='estoque_ia_luna.csv',
-            mime='text/csv',
-        )
-        
-        # 2. Backup DB
+        col_btn1.download_button("📥 Baixar Planilha (CSV)", data=csv, file_name='estoque_ia_luna.csv', mime='text/csv')
         if os.path.exists('estoque.db'):
             with open('estoque.db', 'rb') as f:
-                col_btn2.download_button(
-                    label="💾 Backup Completo (DB)",
-                    data=f,
-                    file_name='estoque.db',
-                    mime='application/octet-stream',
-                )
+                col_btn2.download_button("💾 Backup Completo (DB)", data=f, file_name='estoque.db', mime='application/octet-stream')
         
         st.divider()
-        # ---------------------------------
-
         col1, col2 = st.columns(2)
         with col1:
             fig = px.bar(df, x='nome', y='quantidade', title="Volume de Estoque", color='quantidade')
