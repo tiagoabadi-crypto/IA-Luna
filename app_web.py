@@ -70,22 +70,23 @@ if menu == "📦 Estoque":
         st.write("---")
         col1, col2 = st.columns(2)
         with col1:
+            # Corrigido para usar preco_venda
             fig = px.bar(df, x='nome', y='quantidade', title="Volume de Estoque", color='quantidade')
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, use_container_width=True)
         with col2:
-            df['valor_total'] = df['preco'] * df['quantidade']
+            # Corrigido para usar preco_venda
+            df['valor_total'] = df['preco_venda'] * df['quantidade']
             fig_valor = px.pie(df, values='valor_total', names='nome', title="Distribuição de Valor")
-            st.plotly_chart(fig_valor, width='stretch')
+            st.plotly_chart(fig_valor, use_container_width=True)
         
         limite_baixo = 5 
         baixo_estoque = df[df['quantidade'] <= limite_baixo]
         if not baixo_estoque.empty:
-            st.error(f"⚠️ Atenção: {len(baixo_estoque)} produtos com estoque crítico (<= {limite_baixo})!")
-            st.dataframe(baixo_estoque, width='stretch')
-            st.divider()
+            st.error(f"⚠️ Atenção: {len(baixo_estoque)} produtos com estoque crítico!")
+            st.dataframe(baixo_estoque, use_container_width=True)
 
         st.subheader("Lista Geral de Produtos")
-        st.dataframe(df, width='stretch')
+        st.dataframe(df, use_container_width=True)
     else:
         st.info("Estoque vazio no momento.")
 
@@ -93,30 +94,73 @@ elif menu == "💰 Financeiro":
     st.header("💰 Visão Financeira")
     df = db.buscar_tudo()
     if not df.empty:
-        df['lucro_unitario'] = df['preco'] - df['preco_referencia']
+        # Corrigido para usar as novas colunas
+        df['lucro_unitario'] = df['preco_venda'] - df['preco_custo']
         df['lucro_total_estoque'] = df['lucro_unitario'] * df['quantidade']
         
         c1, c2, c3 = st.columns(3)
-        c1.metric("Venda Total", f"R$ {df['preco'].mul(df['quantidade']).sum():.2f}")
-        c2.metric("Custo Total", f"R$ {df['preco_referencia'].mul(df['quantidade']).sum():.2f}")
+        c1.metric("Venda Total (Estoque)", f"R$ {df['preco_venda'].mul(df['quantidade']).sum():.2f}")
+        c2.metric("Custo Total (Estoque)", f"R$ {df['preco_custo'].mul(df['quantidade']).sum():.2f}")
         c3.metric("Lucro Potencial", f"R$ {df['lucro_total_estoque'].sum():.2f}")
+        
         st.write("---")
-        st.dataframe(df[['nome', 'preco', 'preco_referencia', 'lucro_total_estoque']], width='stretch')
+        st.dataframe(df[['nome', 'preco_venda', 'preco_custo', 'lucro_total_estoque']], use_container_width=True)
+    else:
+        st.info("Não há dados financeiros disponíveis.")
 
 elif menu == "➕ Gestão":
-    st.header("➕ Cadastrar Produto")
-    nome_inicial = buscar_produto_api(st.session_state.codigo_lido) if 'codigo_lido' in st.session_state else ""
-    with st.form("cadastro"):
-        nome = st.text_input("Nome", value=nome_inicial)
-        cat = st.text_input("Categoria")
+    st.header("➕ Cadastrar / Atualizar Produto")
+    
+    # Formulário de Cadastro
+    with st.form("cadastro", clear_on_submit=True):
+        # Linha 1: Identificação
         c1, c2 = st.columns(2)
-        preco = c1.number_input("Preço Venda", 0.0)
-        ref = c2.number_input("Preço Custo", 0.0)
-        qtd = st.number_input("Qtd Inicial", 0, step=1)
-        val = st.text_input("Validade")
+        cod_barras = c1.text_input("Código de Barras")
+        nome = c2.text_input("Nome do Produto")
+        
+        # Linha 2: Detalhes
+        c3, c4, c5 = st.columns(3)
+        marca = c3.text_input("Marca")
+        peso = c4.number_input("Peso (g/ml)", 0.0)
+        categoria = c5.text_input("Categoria")
+        
+        espec = st.text_input("Especificação (ex: sabor morango, 12 unid)")
+        
+        # Linha 3: Preços
+        c6, c7, c8 = st.columns(3)
+        p_venda = c6.number_input("Preço de Venda (R$)", 0.0, format="%.2f")
+        p_custo = c7.number_input("Preço de Custo (R$)", 0.0, format="%.2f")
+        ncm = c8.text_input("NCM")
+        
+        # Linha 4: Estoque e Validade
+        c9, c10, c11 = st.columns(3)
+        qtd = c9.number_input("Qtd Inicial", 0, step=1)
+        est_min = c10.number_input("Estoque Mínimo", 0, step=1)
+        validade = c11.text_input("Validade (DD/MM/AAAA)")
+        
+        # Linha 5: Detalhes finais
+        fornecedor = st.text_input("Fornecedor")
+        local = st.text_input("Localização na Loja")
+        status = st.selectbox("Status", ["Ativo", "Inativo"])
+        foto = st.file_uploader("Foto do Produto", type=['png', 'jpg', 'jpeg'])
+
+        # O BOTÃO DEVE ESTAR DENTRO DO WITH ST.FORM
         if st.form_submit_button("Salvar Produto"):
-            db.salvar_produto_inteligente(nome, cat, preco, qtd, val, ref)
-            st.success("Produto salvo com sucesso!")
+            # Lógica de upload de imagem
+            img_path = ""
+            if foto:
+                os.makedirs("uploads", exist_ok=True)
+                img_path = f"uploads/{cod_barras}.png"
+                with open(img_path, "wb") as f: 
+                    f.write(foto.getbuffer())
+            
+            # Chamada da função com as variáveis corretas definidas acima
+            db.salvar_produto_inteligente(
+                nome, cod_barras, marca, espec, peso, categoria, 
+                validade, qtd, est_min, fornecedor, p_venda, 
+                p_custo, ncm, local, status, img_path
+            )
+            st.success(f"Produto {nome} cadastrado com sucesso!")
 
 elif menu == "🛒 Vendas":
     st.header("🛒 Registrar Venda")
