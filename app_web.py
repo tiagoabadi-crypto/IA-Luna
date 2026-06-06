@@ -74,3 +74,70 @@ if menu == "📦 Estoque":
             st.plotly_chart(fig, width='stretch')
         with col2:
             df['valor_total'] = df['preco'] * df['quantidade']
+            fig_valor = px.pie(df, values='valor_total', names='nome', title="Distribuição de Valor")
+            st.plotly_chart(fig_valor, width='stretch')
+        
+        limite_baixo = 5 
+        baixo_estoque = df[df['quantidade'] <= limite_baixo]
+        if not baixo_estoque.empty:
+            st.error(f"⚠️ Atenção: {len(baixo_estoque)} produtos com estoque crítico (<= {limite_baixo})!")
+            st.dataframe(baixo_estoque, width='stretch')
+            st.divider()
+
+        st.subheader("Lista Geral de Produtos")
+        st.dataframe(df, width='stretch')
+    else:
+        st.info("Estoque vazio no momento.")
+
+elif menu == "💰 Financeiro":
+    st.header("💰 Visão Financeira")
+    df = db.buscar_tudo()
+    if not df.empty:
+        df['lucro_unitario'] = df['preco'] - df['preco_referencia']
+        df['lucro_total_estoque'] = df['lucro_unitario'] * df['quantidade']
+        
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Venda Total", f"R$ {df['preco'].mul(df['quantidade']).sum():.2f}")
+        c2.metric("Custo Total", f"R$ {df['preco_referencia'].mul(df['quantidade']).sum():.2f}")
+        c3.metric("Lucro Potencial", f"R$ {df['lucro_total_estoque'].sum():.2f}")
+        st.write("---")
+        st.dataframe(df[['nome', 'preco', 'preco_referencia', 'lucro_total_estoque']], width='stretch')
+
+elif menu == "➕ Gestão":
+    st.header("➕ Cadastrar Produto")
+    nome_inicial = buscar_produto_api(st.session_state.codigo_lido) if 'codigo_lido' in st.session_state else ""
+    with st.form("cadastro"):
+        nome = st.text_input("Nome", value=nome_inicial)
+        cat = st.text_input("Categoria")
+        c1, c2 = st.columns(2)
+        preco = c1.number_input("Preço Venda", 0.0)
+        ref = c2.number_input("Preço Custo", 0.0)
+        qtd = st.number_input("Qtd Inicial", 0, step=1)
+        val = st.text_input("Validade")
+        if st.form_submit_button("Salvar Produto"):
+            db.salvar_produto_inteligente(nome, cat, preco, qtd, val, ref)
+            st.success("Produto salvo com sucesso!")
+
+elif menu == "🛒 Vendas":
+    st.header("🛒 Registrar Venda")
+    df = db.buscar_tudo()
+    if not df.empty:
+        prod_id = st.selectbox("Selecione o produto:", df['id'].tolist(), format_func=lambda x: df[df['id']==x]['nome'].values[0])
+        qtd_venda = st.number_input("Qtd vendida:", 1, step=1)
+        if st.button("Confirmar Venda"):
+            if db.registrar_venda(prod_id, qtd_venda):
+                st.success("Venda registrada!")
+                st.rerun()
+
+elif menu == "📜 Logs":
+    st.header("📜 Histórico de Ações")
+    st.dataframe(db.buscar_logs(), width='stretch')
+
+elif menu == "📷 Leitor":
+    st.header("📷 Leitor de Código")
+    img_file = st.camera_input("Capturar")
+    if img_file is not None:
+        codigo = ler_codigo(img_file.getvalue())
+        if codigo:
+            st.session_state.codigo_lido = codigo
+            st.success(f"✅ Código {codigo} identificado! Vá para a aba 'Gestão' para cadastrar.")
