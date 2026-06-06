@@ -18,7 +18,7 @@ def tela_login():
     st.title("🔐 IA Luna - Acesso Restrito")
     senha = st.text_input("Digite a senha de acesso:", type="password")
     if st.button("Entrar"):
-        if senha == "1234": # VOCÊ PODE MUDAR A SENHA AQUI
+        if senha == "134792": # VOCÊ PODE MUDAR A SENHA AQUI
             st.session_state.autenticado = True
             st.rerun()
         else:
