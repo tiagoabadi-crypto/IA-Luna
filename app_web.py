@@ -5,6 +5,7 @@ import numpy as np
 from pyzbar.pyzbar import decode
 import requests
 import plotly.express as px
+import os # Biblioteca necessária para lidar com o arquivo .db
 
 st.set_page_config(page_title="IA Luna - ERP", layout="wide")
 db.garantir_estrutura()
@@ -51,14 +52,28 @@ if st.session_state.pagina == "📦 Estoque":
     df = db.buscar_tudo()
     
     if not df.empty:
-        # --- NOVO: Botão de Exportação ---
+        # --- Botões de Exportação/Backup ---
+        col_btn1, col_btn2 = st.columns(2)
+        
+        # 1. Export CSV
         csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button(
+        col_btn1.download_button(
             label="📥 Baixar Planilha (CSV)",
             data=csv,
             file_name='estoque_ia_luna.csv',
             mime='text/csv',
         )
+        
+        # 2. Backup DB
+        if os.path.exists('estoque.db'):
+            with open('estoque.db', 'rb') as f:
+                col_btn2.download_button(
+                    label="💾 Backup Completo (DB)",
+                    data=f,
+                    file_name='estoque.db',
+                    mime='application/octet-stream',
+                )
+        
         st.divider()
         # ---------------------------------
 
