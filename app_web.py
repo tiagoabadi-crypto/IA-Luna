@@ -49,7 +49,19 @@ st.session_state.pagina = st.radio(
 if st.session_state.pagina == "📦 Estoque":
     st.header("🔎 Dashboard e Estoque")
     df = db.buscar_tudo()
+    
     if not df.empty:
+        # --- NOVO: Botão de Exportação ---
+        csv = df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Baixar Planilha (CSV)",
+            data=csv,
+            file_name='estoque_ia_luna.csv',
+            mime='text/csv',
+        )
+        st.divider()
+        # ---------------------------------
+
         col1, col2 = st.columns(2)
         with col1:
             fig = px.bar(df, x='nome', y='quantidade', title="Volume de Estoque", color='quantidade')
@@ -67,6 +79,8 @@ if st.session_state.pagina == "📦 Estoque":
             st.divider()
         st.subheader("Lista Geral")
         st.dataframe(df, use_container_width=True)
+    else:
+        st.info("Estoque vazio.")
 
 elif st.session_state.pagina == "💰 Financeiro":
     st.header("💰 Visão Financeira")
