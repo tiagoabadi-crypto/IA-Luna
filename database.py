@@ -19,7 +19,7 @@ def garantir_estrutura():
             status TEXT, imagem_path TEXT
         )
     ''')
-    # Tabela de Logs (Essencial para as suas funções de registro funcionarem)
+    # Tabela de Logs
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -91,8 +91,21 @@ def buscar_produtos_proximos_vencimento():
     return df
 
 def excluir_produto(id_produto):
-    conn = conectar() # Corrigido aqui
+    conn = conectar()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM produtos WHERE id = ?", (id_produto,))
+    conn.commit()
+    conn.close()
+
+def atualizar_produto(id, nome, cod, marca, espec, peso, cat, val, qtd, est_min, fornec, p_venda, p_custo, ncm, local, status):
+    conn = conectar()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE produtos SET 
+        nome=?, codigo_barras=?, marca=?, especificacao=?, peso=?, categoria=?, 
+        validade=?, quantidade=?, estoque_minimo=?, fornecedor=?, preco_venda=?, 
+        preco_custo=?, ncm=?, localizacao=?, status=? 
+        WHERE id=?
+    """, (nome, cod, marca, espec, peso, cat, val, qtd, est_min, fornec, float(p_venda), float(p_custo), ncm, local, status, int(id)))
     conn.commit()
     conn.close()
