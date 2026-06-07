@@ -8,7 +8,7 @@ def conectar():
 def garantir_estrutura():
     conn = conectar()
     cursor = conn.cursor()
-    # Adicionando todos os campos que aparecem no seu formulário
+    # Tabela de Produtos
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS produtos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -19,18 +19,13 @@ def garantir_estrutura():
             status TEXT, imagem_path TEXT
         )
     ''')
-    conn.commit()
-    conn.close()
-
-def salvar_produto_inteligente(nome, cod, marca, espec, peso, cat, val, qtd, est_min, fornec, preco_v, preco_c, ncm, local, status, img):
-    conn = conectar()
-    cursor = conn.cursor()
-    # Agora salva os 16 argumentos que o formulário envia
-    cursor.execute("""INSERT INTO produtos (nome, codigo_barras, marca, especificacao, peso, categoria, 
-                      validade, quantidade, estoque_minimo, fornecedor, preco_venda, preco_custo, 
-                      ncm, localizacao, status, imagem_path) 
-                      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", 
-                   (nome, cod, marca, espec, peso, cat, val, qtd, est_min, fornec, preco_v, preco_c, ncm, local, status, img))
+    # Tabela de Logs (Essencial para as suas funções de registro funcionarem)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            acao TEXT, data TEXT
+        )
+    ''')
     conn.commit()
     conn.close()
 
@@ -94,3 +89,10 @@ def buscar_produtos_proximos_vencimento():
     df = pd.read_sql_query("SELECT * FROM produtos WHERE validade != ''", conn)
     conn.close()
     return df
+
+def excluir_produto(id_produto):
+    conn = conectar() # Corrigido aqui
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM produtos WHERE id = ?", (id_produto,))
+    conn.commit()
+    conn.close()

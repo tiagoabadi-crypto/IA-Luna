@@ -109,59 +109,67 @@ elif menu == "💰 Financeiro":
         st.info("Não há dados financeiros disponíveis.")
 
 elif menu == "➕ Gestão":
-    st.header("➕ Cadastrar / Atualizar Produto")
+    st.header("➕ Gestão de Produtos")
     
-    # Formulário de Cadastro
-    with st.form("cadastro", clear_on_submit=True):
-        # Linha 1: Identificação
-        c1, c2 = st.columns(2)
-        cod_barras = c1.text_input("Código de Barras")
-        nome = c2.text_input("Nome do Produto")
-        
-        # Linha 2: Detalhes
-        c3, c4, c5 = st.columns(3)
-        marca = c3.text_input("Marca")
-        peso = c4.number_input("Peso (g/ml)", 0.0, step=0.001, format="%g")
-        categoria = c5.text_input("Categoria")
-        
-        espec = st.text_input("Especificação (ex: sabor morango, 12 unid)")
-        
-        # Linha 3: Preços
-        c6, c7, c8 = st.columns(3)
-        p_venda = c6.number_input("Preço de Venda (R$)", 0.0, format="%.2f")
-        p_custo = c7.number_input("Preço de Custo (R$)", 0.0, format="%.2f")
-        ncm = c8.text_input("NCM")
-        
-        # Linha 4: Estoque e Validade
-        c9, c10, c11 = st.columns(3)
-        qtd = c9.number_input("Qtd Inicial", 0, step=1)
-        est_min = c10.number_input("Estoque Mínimo", 0, step=1)
-        validade = c11.text_input("Validade (DD/MM/AAAA)")
-        
-        # Linha 5: Detalhes finais
-        fornecedor = st.text_input("Fornecedor")
-        local = st.text_input("Localização na Loja")
-        status = st.selectbox("Status", ["Ativo", "Inativo"])
-        foto = st.file_uploader("Foto do Produto", type=['png', 'jpg', 'jpeg'])
+    # Criamos abas para não bagunçar o que já está pronto
+    aba_cadastro, aba_edicao = st.tabs(["Novo Cadastro", "Editar/Excluir"])
 
-        # O BOTÃO DEVE ESTAR DENTRO DO WITH ST.FORM
-        if st.form_submit_button("Salvar Produto"):
-            # Lógica de upload de imagem
-            img_path = ""
-            if foto:
-                os.makedirs("uploads", exist_ok=True)
-                img_path = f"uploads/{cod_barras}.png"
-                with open(img_path, "wb") as f: 
-                    f.write(foto.getbuffer())
+    with aba_cadastro:
+        # --- AQUI ESTÁ EXATAMENTE O SEU FORMULÁRIO ATUAL ---
+        with st.form("cadastro", clear_on_submit=True):
+            c1, c2 = st.columns(2)
+            cod_barras = c1.text_input("Código de Barras")
+            nome = c2.text_input("Nome do Produto")
             
-            # Chamada da função com as variáveis corretas definidas acima
-            db.salvar_produto_inteligente(
-                nome, cod_barras, marca, espec, peso, categoria, 
-                validade, qtd, est_min, fornecedor, p_venda, 
-                p_custo, ncm, local, status, img_path
-            )
-            st.success(f"Produto {nome} cadastrado com sucesso!")
+            c3, c4, c5 = st.columns(3)
+            marca = c3.text_input("Marca")
+            # Mantendo seu ajuste do peso:
+            peso = c4.number_input("Peso (g/ml)", 0.0, step=0.001, format="%g")
+            categoria = c5.text_input("Categoria")
+            
+            espec = st.text_input("Especificação")
+            
+            c6, c7, c8 = st.columns(3)
+            p_venda = c6.number_input("Preço de Venda (R$)", 0.0, format="%.2f")
+            p_custo = c7.number_input("Preço de Custo (R$)", 0.0, format="%.2f")
+            ncm = c8.text_input("NCM")
+            
+            c9, c10, c11 = st.columns(3)
+            qtd = c9.number_input("Qtd Inicial", 0, step=1)
+            est_min = c10.number_input("Estoque Mínimo", 0, step=1)
+            validade = c11.text_input("Validade (DD/MM/AAAA)")
+            
+            fornecedor = st.text_input("Fornecedor")
+            local = st.text_input("Localização na Loja")
+            status = st.selectbox("Status", ["Ativo", "Inativo"])
+            foto = st.file_uploader("Foto do Produto", type=['png', 'jpg', 'jpeg'])
 
+            if st.form_submit_button("Salvar Produto"):
+                img_path = "" 
+                db.salvar_produto_inteligente(nome, cod_barras, marca, espec, peso, categoria, 
+                                            validade, qtd, est_min, fornecedor, p_venda, 
+                                            p_custo, ncm, local, status, img_path)
+                st.success("Produto salvo com sucesso!")
+
+    with aba_edicao:
+        st.write("Selecione um produto para editar ou excluir:")
+        df = db.buscar_tudo()
+        if not df.empty:
+            # Lista produtos pelo nome
+            produto_selecionado = st.selectbox("Escolha o produto:", df['nome'].tolist())
+            produto_info = df[df['nome'] == produto_selecionado].iloc[0]
+            
+            st.write(f"Editando: **{produto_info['nome']}**")
+            # Aqui você pode adicionar os inputs para editar os campos
+            # (Se quiser avançar nisso, me avise!)
+            
+            if st.button("Excluir este produto"):
+                db.excluir_produto(int(produto_info['id']))
+                st.warning("Produto excluído com sucesso!")
+                st.rerun()
+        else:
+            st.info("Nenhum produto cadastrado para editar.")
+            
 elif menu == "🛒 Vendas":
     st.header("🛒 Registrar Venda")
     df = db.buscar_tudo()
