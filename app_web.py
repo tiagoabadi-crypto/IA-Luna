@@ -121,7 +121,7 @@ elif menu == "➕ Gestão":
         # Linha 2: Detalhes
         c3, c4, c5 = st.columns(3)
         marca = c3.text_input("Marca")
-        peso = c4.number_input("Peso (g/ml)", 0.0)
+        peso = c4.number_input("Peso (g/ml)", 0.0, step=0.001, format="%.3f")
         categoria = c5.text_input("Categoria")
         
         espec = st.text_input("Especificação (ex: sabor morango, 12 unid)")
